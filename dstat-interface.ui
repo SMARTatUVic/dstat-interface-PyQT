@@ -402,6 +402,12 @@
                      <property name="decimals">
                       <number>0</number>
                      </property>
+                     <property name="minimum">
+                      <double>-1500.000000000000000</double>
+                     </property>
+                     <property name="maximum">
+                      <double>0.000000000000000</double>
+                     </property>
                     </widget>
                    </item>
                    <item row="1" column="0">
@@ -423,12 +429,18 @@
                      <property name="decimals">
                       <number>0</number>
                      </property>
+                     <property name="maximum">
+                      <double>1500.000000000000000</double>
+                     </property>
                     </widget>
                    </item>
                    <item row="2" column="1">
                     <widget class="QDoubleSpinBox" name="lsv_slope">
                      <property name="decimals">
                       <number>0</number>
+                     </property>
+                     <property name="maximum">
+                      <double>1000.000000000000000</double>
                      </property>
                     </widget>
                    </item>
