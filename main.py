@@ -1,6 +1,7 @@
 from PyQt5 import QtGui, QtWidgets, uic, QtCore
-import serial, time, json, worker, struct
+import serial, time, datetime, json, worker, struct
 from serial.tools import list_ports
+import pyqtgraph as pg
 
 class MainWindow(QtWidgets.QMainWindow):
 
@@ -22,7 +23,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.plot_timer = QtCore.QTimer()
         self.plot_timer.setInterval(int(1000/10))
         self.plot_timer.timeout.connect(self.update_plot)
-        self.plot_timer.start()
 
         # True if DStat is connected via usb
         self.connected = False
@@ -41,9 +41,34 @@ class MainWindow(QtWidgets.QMainWindow):
         # Note this prints to the status box in an odd way for thread
         # safety between the main event loop and the worker thread.
 
-        file = open('data.txt', 'w')
+        file = None
+        new_exp = True
 
         while self.connected:
+
+            # Experiment started. Create new file
+            if self.experiment_active == True and new_exp == True:
+                new_exp = False
+
+                fmt = "{:%Y-%m-%dT%H-%M-%S}_" + \
+                      self.exptype_dropdown.currentText() + ".csv"
+                file_name = fmt.format(datetime.datetime.now())
+                file = open(file_name, 'w')
+
+                # Header for csv
+                match self.exptype_dropdown.currentText():
+                    case "Linear Sweep Voltammetry":
+                        file.write('voltage [V],current [A]\n')
+                    case "Potentiometry":
+                        file.write('voltage [V],current [A]\n')
+            
+            # Experiment ended. Close file
+            elif self.experiment_active == False and new_exp == False:
+                signals.msg.emit("Exported to: " + file_name)
+                new_exp = True
+                file.close()
+            
+            # Process serial data from dstat
             try:
                 line = self.ser.readline()
                             
@@ -62,14 +87,12 @@ class MainWindow(QtWidgets.QMainWindow):
                             V = self.correct_voltage(V, "Voltammetry")
                             I = self.correct_current(I)
 
-                            self.exp_data_x.append(V)
-                            self.exp_data_y.append(I)
+                            self.exp_data_x.insert(0, V)
+                            self.exp_data_y.insert(0, I)
 
                             # Notify for convenience
-                            status =  "{:.3e}".format(self.exp_data_x[-1])
-                            #status += "[V] "
-                            status += " {:.3e}".format(self.exp_data_y[-1])
-                            #status += "[A]"
+                            status =  "{:.3e}".format(self.exp_data_x[0])
+                            status += ",{:.3e}".format(self.exp_data_y[0])
                             signals.msg.emit(status)
                             file.write(status + '\n')
 
@@ -81,15 +104,14 @@ class MainWindow(QtWidgets.QMainWindow):
                             s, ms, V = struct.unpack( '<HHl', data)
                             V = self.correct_voltage(V, "Potentiometry")
 
-                            self.exp_data_x.append(s + ms/1000)
-                            self.exp_data_y.append(V)
+                            self.exp_data_x.insert(0, s + ms/1000)
+                            self.exp_data_y.insert(0, V)
 
                             # Notify for convenience
-                            status =  "{:.1f}".format(self.exp_data_x[-1])
-                            status += "[s] "
-                            status += "{:.5f}".format(self.exp_data_y[-1])
-                            status += "[V]"
+                            status =  "{:.1f}".format(self.exp_data_x[0])
+                            status += ",{:.5f}".format(self.exp_data_y[0])
                             signals.msg.emit(status)
+                            file.write(status + '\n')
 
                         case _:
                             signals.msg.emit("Error: Unknown experiment type")
@@ -98,13 +120,18 @@ class MainWindow(QtWidgets.QMainWindow):
                     signals.msg.emit(line.lstrip().rstrip().decode("utf-8"))
                         
                 elif line.lstrip().startswith(b"@"):
-                    signals.msg.emit(line.lstrip().rstrip().decode("utf-8"))
+                    line = line.lstrip().rstrip().decode("utf-8")
+                    signals.msg.emit(line)
+
+                    match line:
+                        case "@DONE":
+                            # TODO make this call stop_exp()
+                            pass
+
     
             except serial.SerialException:
                 print("SerialException!")
                 print(line)
-
-        file.close()
 
     # Convert a raw ADC/DAC value from DStat to voltage
     def correct_voltage(self, raw, exp_type):
@@ -125,7 +152,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # Convert a raw ADC/DAC value from DStat to current
     def correct_current(self, raw):
-
 
         # PGA gain is 2^(DStat gain setting)
         pga = self.pga_dropdown.currentText()
@@ -180,9 +206,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.refresh_btn.setEnabled(False)
                 self.port_dropdown.setEnabled(False)
                 self.connect_btn.setEnabled(False)
+                self.frame_exp.setEnabled(True)
 
             case "EXP_STARTED":
-                # TODO Allow gain/pga/srate to be adjusted mid exp!
+                # TODO Allow gain/pga/srate to be adjusted mid exp?
                 self.execute_btn.setEnabled(False)
                 self.stop_btn.setEnabled(True)
 
@@ -220,23 +247,24 @@ class MainWindow(QtWidgets.QMainWindow):
     def configure_plot(self, experiment):
         match experiment:
             case "Linear Sweep Voltammetry":
-                self.exp_plot.setTitle("Current Vs Voltage", size="12pt")
+                self.exp_plot.setTitle("Current Vs Voltage", size="14pt")
                 self.exp_plot.setLabel("bottom", "Voltage [V]")
                 self.exp_plot.setLabel("left", "Current [A]")
             case "Potentiometry":
-                self.exp_plot.setTitle("Voltage Vs Time", size="12pt")
+                self.exp_plot.setTitle("Voltage Vs Time", size="14pt")
                 self.exp_plot.setLabel("bottom", "Time [s]")
                 self.exp_plot.setLabel("left", "Voltage [V]")
             case _:
                 self.msg("Error: Unknown experiment type")
 
+        self.exp_plot.setMouseEnabled(x=False,y=False)
         self.exp_plot.setLabel("right", "") # Padding
         self.exp_plot.showGrid(x=True, y=True)
 
     # Update plot with latest data from DStat
     def update_plot(self):
         # Exclude first few data points during settling
-        self.exp_line.setData(self.exp_data_x[5:], self.exp_data_y[5:])
+        self.exp_line.setData(self.exp_data_x[:-3], self.exp_data_y[:-3])
 
     # Gracefully close the program on exit
     def closeEvent(self, event):
@@ -253,10 +281,16 @@ class MainWindow(QtWidgets.QMainWindow):
             close = close.exec()
 
             if close == QtWidgets.QMessageBox.Yes:
-                self.connected = False # Signal thread to stop
                 event.accept()
             else:
                 event.ignore()
+
+        else:
+            self.connected = False # Signal thread to stop
+
+            # Wait for threads to stop
+            while self.threadpool.activeThreadCount() > 0:
+                time.sleep(0.1)
 
     ################################# SIGNALS ##################################
 
@@ -274,10 +308,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.msg("Stopping DStat...")
         self.ser.reset_output_buffer()
         self.ser.write(b'a') # Abort
+
+        # Leave the plot on the graph but write data to file
+        # and clear plot lists to prepare for next test.
+        self.plot_timer.stop()
+        self.exp_data_x = []
+        self.exp_data_y = []
+
         self.experiment_active = False
 
     # Send commands to DStat to exectute the current experiment
     def execute_exp(self):
+
+        self.plot_timer.start()
 
         # See communication_protocal.txt in dstat-firmware repo.
         # https://microfluidics.utoronto.ca/gitlab/dstat/dstat-firmware
@@ -326,6 +369,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     to make better use of this data type. Many of the
                     experiment files like lsv.py do this conversion of
                     integers before sending to the dstat as a command
+
+                    Weirdly, the start and stop voltages are in mV but the
+                    slope must be converted to dac/adc units.
                 '''
 
                 # Preconditioning
@@ -336,12 +382,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 t_precond1 = str(int(self.lsv_tclean.value()))
                 t_precond2 = str(int(self.lsv_tdep.value()))
 
-                start = str(int( \
-                    int(self.lsv_start_mV.value())*(65536./3000)+32768))
-                stop  = str(int( \
-                    int(self.lsv_stop_mV.value())*(65536./3000)+32768))
+                # LSV
                 slope = str(
                     int(self.lsv_slope.value())*(65536./3000))
+                start = str(int(self.lsv_start_mV.value()))
+                stop  = str(int(self.lsv_stop_mV.value()))
 
                 cmd = 'EL' + t_precond1 + ' ' + t_precond2 + ' ' + \
                       v_precond1 + ' ' + v_precond2 + ' ' + start + \
@@ -352,6 +397,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         
             case _:
                 self.msg("Error: Unknown experiment type")
+                return
 
         self.experiment_active = True
 
