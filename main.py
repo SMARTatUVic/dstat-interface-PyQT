@@ -155,14 +155,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # PGA gain is 2^(DStat gain setting)
         pga = self.pga_dropdown.currentText()
-        pga = 2**int(self.DSTAT_PGA[pga])
+        #pga = 2**int(self.DSTAT_PGA[pga])
+        pga = int(self.DSTAT_PGA[pga])
 
         gain = self.gain_dropdown.currentText()
 
-        # TODO should be in ohms! Add a new entry in json_maker.py?
-        gain = int(self.DSTAT_GAIN[gain])
+        # Gain in ohms
+        gain = int(self.DSTAT_GAIN[gain][1])
 
         I = (raw/(pga/2))*(1.5/gain/8388607.)
+
         return I
 
     # Read dictionaries of settings from json file and populate UI
@@ -264,7 +266,7 @@ class MainWindow(QtWidgets.QMainWindow):
     # Update plot with latest data from DStat
     def update_plot(self):
         # Exclude first few data points during settling
-        self.exp_line.setData(self.exp_data_x[:-3], self.exp_data_y[:-3])
+        self.exp_line.setData(self.exp_data_x[:-2], self.exp_data_y[:-2])
 
     # Gracefully close the program on exit
     def closeEvent(self, event):
@@ -344,7 +346,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ser.write(cmd.encode("utf-8") + b'\r\n')
 
         # Set gain
-        cmd = "EG" + str(self.DSTAT_GAIN[gain]) + ' '
+        cmd = "EG" + str(self.DSTAT_GAIN[gain][0]) + ' '
         self.ser.write(b'!' + str(len(cmd)).encode("utf-8") + b'\r\n')
         self.ser.write(cmd.encode("utf-8") + b'\r\n')
 
@@ -369,24 +371,18 @@ class MainWindow(QtWidgets.QMainWindow):
                     to make better use of this data type. Many of the
                     experiment files like lsv.py do this conversion of
                     integers before sending to the dstat as a command
-
-                    Weirdly, the start and stop voltages are in mV but the
-                    slope must be converted to dac/adc units.
                 '''
 
                 # Preconditioning
-                v_precond1 = str(int( \
-                    int(self.lsv_vclean.value())*(65536./3000)+32768))
-                v_precond2 = str(int( \
-                    int(self.lsv_vdep.value())*(65536./3000)+32768))
+                v_precond1 = str(int(self.lsv_vclean.value()*(65536./3000)+32768))
+                v_precond2 = str(int(self.lsv_vdep.value()*(65536./3000)+32768))
                 t_precond1 = str(int(self.lsv_tclean.value()))
                 t_precond2 = str(int(self.lsv_tdep.value()))
 
                 # LSV
-                slope = str(
-                    int(self.lsv_slope.value())*(65536./3000))
-                start = str(int(self.lsv_start_mV.value()))
-                stop  = str(int(self.lsv_stop_mV.value()))
+                slope = str(int(self.lsv_slope.value()*(65536./3000)))
+                start = str(int(self.lsv_start_mV.value()*(65536./3000)+32768))
+                stop = str(int(self.lsv_stop_mV.value()*(65536./3000)+32768))
 
                 cmd = 'EL' + t_precond1 + ' ' + t_precond2 + ' ' + \
                       v_precond1 + ' ' + v_precond2 + ' ' + start + \
