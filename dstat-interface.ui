@@ -17,7 +17,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>dstat-interface-PyQT</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="top_layout">
@@ -86,7 +86,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QFrame" name="frame_4">
+           <widget class="QFrame" name="frame_adc">
             <property name="frameShape">
              <enum>QFrame::StyledPanel</enum>
             </property>
@@ -123,12 +123,16 @@
               </widget>
              </item>
              <item row="2" column="1">
-              <widget class="QComboBox" name="ibuffer_dropdown"/>
+              <widget class="QComboBox" name="ibuffer_dropdown">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Sets the ADC's internal input buffer. Should generally be enabled.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+              </widget>
              </item>
              <item row="0" column="1">
               <widget class="QComboBox" name="pga_dropdown">
                <property name="toolTip">
-                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Adjust programmable gain amplifer built into the DStat's analog to digital converter.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Adjust programmable gain amplifer built into the DStat's analog to digital converter. Generally recommended to leave at 2X.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                </property>
               </widget>
              </item>
@@ -143,7 +147,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QFrame" name="frame_5">
+           <widget class="QFrame" name="frame_gain">
             <property name="frameShape">
              <enum>QFrame::StyledPanel</enum>
             </property>

@@ -209,9 +209,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.port_dropdown.setEnabled(False)
                 self.connect_btn.setEnabled(False)
                 self.frame_exp.setEnabled(True)
+                self.frame_adc.setEnabled(True)
+                self.frame_gain.setEnabled(True)
 
             case "EXP_STARTED":
-                # TODO Allow gain/pga/srate to be adjusted mid exp?
                 self.execute_btn.setEnabled(False)
                 self.stop_btn.setEnabled(True)
 
@@ -219,6 +220,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.port_dropdown.setEnabled(False)
                 self.connect_btn.setEnabled(False)
                 self.frame_exp.setEnabled(False)
+                self.frame_adc.setEnabled(False)
+                self.frame_gain.setEnabled(False)
 
             case _:
                 self.msg("Error: Unknown UI visibility requested")
@@ -262,6 +265,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.exp_plot.setMouseEnabled(x=False,y=False)
         self.exp_plot.setLabel("right", "") # Padding
         self.exp_plot.showGrid(x=True, y=True)
+        self.exp_plot.plotItem.getViewBox().setMouseMode(pg.ViewBox.RectMode)
 
     # Update plot with latest data from DStat
     def update_plot(self):
