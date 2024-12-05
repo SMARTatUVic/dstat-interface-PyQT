@@ -28,9 +28,9 @@ Install the required libraries using pip:
 pip install -r requirements.txt
 ```
 
-From now on, to use the interface with DStat, open a terminal in `\src` and run:
+From now on, to use the interface with DStat, open a terminal in `dstat-interface-PyQT/` and run:
 ```
-source ../.venv/bin/activate
+source .venv/bin/activate
 python main.py
 ```
 
@@ -56,9 +56,9 @@ Install the required libraries using pip:
 pip install -r requirements.txt
 ```
 
-From now on, to use the interface with DStat, open a terminal in `\src` and run:
+From now on, to use the interface with DStat, open a terminal in `dstat-interface-PyQT\` and run:
 ```
-..\.venv\Scripts\activate
+.venv\Scripts\activate
 python main.py
 ```
 
